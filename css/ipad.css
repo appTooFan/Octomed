@@ -1,0 +1,421 @@
+/* =========================================================
+   iPad Responsive Fix
+   يحافظ على شكل الهاتف داخل الآيباد والتابلت
+   ويستخدم % و vh قدر الإمكان مثل الكود الأصلي
+========================================================= */
+
+@media screen and (min-width: 768px) and (max-width: 1366px) {
+
+  html,
+  body {
+    width: 100%;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body {
+    background: var(--background-color);
+  }
+
+  /* نخلي التطبيق يظهر كنسخة هاتف أكبر قليلاً داخل الآيباد */
+  .container {
+    width: 100%;
+    max-width: 58%;
+    min-height: 100vh;
+    margin: 0 auto;
+    background-color: var(--background-color);
+  }
+
+  /* =========================
+     البروفايل
+  ========================= */
+  .container .proFile {
+    width: 100%;
+    height: 20vh;
+    grid-template-columns: 18% 27% 27% 18%;
+    grid-template-rows: auto auto 2vh;
+    align-content: space-evenly;
+    justify-items: center;
+  }
+
+  .container .proFile img {
+    width: 9.2vh;
+    height: 9.2vh;
+    min-width: 58px;
+    min-height: 58px;
+    max-width: 78px;
+    max-height: 78px;
+  }
+
+  .container .proFile .user_Name {
+    width: 100%;
+    grid-column: 2/4;
+    align-items: flex-start;
+    justify-content: center;
+  }
+
+  .container .proFile .user_Name h1 {
+    font-size: 1.75vh;
+    line-height: 1.4;
+  }
+
+  .container .proFile .user_Name h3 {
+    font-size: 1.55vh;
+    padding-top: 0.6vh;
+    line-height: 1.3;
+  }
+
+  .container .proFile .rate {
+    font-size: 2.6vh;
+    padding: 0.7vh 1.3vh;
+    border-radius: 1vh;
+  }
+
+  .container .proFile .rate_Data {
+    width: 92%;
+    margin-top: 0.2vh;
+    margin-bottom: 0.2vh;
+  }
+
+  .container .proFile .rate_Data h1 {
+    font-size: 2vh;
+  }
+
+  .container .proFile .rate_Data h3 {
+    font-size: 2.45vh;
+    letter-spacing: 0.08vh;
+  }
+
+  .container .proFile .pro_Level {
+    width: 95%;
+    height: 1.8vh;
+    border-radius: 1vh;
+  }
+
+  .container .pro_Level .pro_Fill {
+    height: 1.8vh;
+    border-radius: 1vh;
+  }
+
+  /* =========================
+     السلايدر / الصور
+  ========================= */
+  .container .views {
+    width: 90%;
+    height: 30vh;
+    border-radius: 1.2vh;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .container .views img {
+    width: 100%;
+    height: 24vh;
+    object-fit: cover;
+    border-radius: 1.2vh;
+  }
+
+  .container .views h1 {
+    font-size: 1.7vh;
+    margin-top: 0.8vh;
+    line-height: 1.5;
+    text-align: center;
+  }
+
+  /* =========================
+     السويبر + المواد
+  ========================= */
+  swiper-container {
+    width: 100%;
+    height: calc(50vh - 55px);
+  }
+
+  swiper-slide {
+    width: 100%;
+    height: calc(50vh - 70px);
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-auto-rows: minmax(9vh, auto);
+    align-content: start;
+    row-gap: 1vh;
+    overflow-y: auto;
+    padding-bottom: 1vh;
+  }
+
+  .container .subjects {
+    width: 100%;
+    height: calc(50vh - 55px);
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-auto-rows: minmax(9vh, auto);
+    align-content: start;
+    row-gap: 1vh;
+    padding-bottom: 1vh;
+  }
+
+  .container .subjects div {
+    width: 100%;
+    min-height: 10vh;
+    padding: 0.8vh 0.5vw;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 0.6vh;
+  }
+
+  .container .subjects div img {
+    width: 5.2vh;
+    height: 5.2vh;
+    min-width: 38px;
+    min-height: 38px;
+    max-width: 52px;
+    max-height: 52px;
+    object-fit: contain;
+  }
+
+  .container .subjects div h4 {
+    width: 92%;
+    font-size: 1.45vh;
+    line-height: 1.35;
+    text-align: center;
+  }
+
+  /* =========================
+     الدروس
+  ========================= */
+  .container .lessons {
+    width: 100%;
+    height: calc(80vh - 55px);
+    overflow-y: auto;
+    padding-bottom: 1vh;
+  }
+
+  .container .lessons div {
+    width: 90%;
+    min-height: 9.5vh;
+    padding: 0.8vh;
+    margin-top: 1vh;
+    border-radius: 1.2vh;
+    grid-template-columns: 18% 27% 27% 28%;
+    align-items: center;
+  }
+
+  .container .lessons div img {
+    width: 7vh;
+    height: 7vh;
+    min-width: 52px;
+    min-height: 52px;
+    max-width: 68px;
+    max-height: 68px;
+    object-fit: contain;
+  }
+
+  .container .lessons div h1 {
+    font-size: 2.15vh;
+    line-height: 1.2;
+  }
+
+  .container .lessons div p {
+    font-size: 1.6vh;
+    line-height: 1.45;
+  }
+
+  .container .lessons div p strong,
+  .container .lessons div p span {
+    font-size: 1.85vh;
+  }
+
+  /* =========================
+     قائمة الدروس
+  ========================= */
+  .container .listlessons {
+    width: 100%;
+    height: calc(80vh - 55px);
+    overflow-y: auto;
+    padding-bottom: 1vh;
+  }
+
+  .container .listlessons .div_Items {
+    width: 90%;
+    min-height: 10vh;
+    padding: 0.8vh;
+    margin-top: 1vh;
+    border-radius: 1vh;
+    grid-template-columns: 18% 24% 24% 24% 10%;
+    align-items: center;
+  }
+
+  .container .listlessons .div_Items img {
+    width: 7vh;
+    height: 7vh;
+    min-width: 52px;
+    min-height: 52px;
+    max-width: 68px;
+    max-height: 68px;
+    object-fit: contain;
+  }
+
+  .container .listlessons .div_Items h1 {
+    font-size: 2.1vh;
+    line-height: 1.15;
+  }
+
+  .container .listlessons .div_Items p {
+    font-size: 1.55vh;
+    line-height: 1.45;
+  }
+
+  .container .listlessons .div_Items p strong {
+    font-size: 1.8vh;
+  }
+
+  .container .listlessons .div_Items .down_Lesson {
+    width: 2.2vh;
+    height: 2.2vh;
+    min-width: 20px;
+    min-height: 20px;
+  }
+
+  .container .listlessons .div_Items .con_Progress {
+    width: 100%;
+    height: 2.6vh;
+    padding-top: 0.4vh;
+    grid-template-columns: 1fr 1fr 1fr 0.8fr;
+  }
+
+  .container .listlessons .div_Items .con_Progress .pro_Level {
+    height: 1.7vh;
+    border-radius: 0.8vh;
+  }
+
+  .container .listlessons .div_Items .con_Progress .pro_Level .pro_Fill {
+    height: 1.7vh;
+    border-radius: 0.8vh;
+  }
+
+  .container .listlessons .div_Items .con_Progress .level {
+    font-size: 1.9vh;
+    line-height: 1;
+  }
+
+  /* =========================
+     الإضافات
+  ========================= */
+  .container .adds {
+    width: 100%;
+    height: calc(80vh - 55px);
+    overflow-y: auto;
+    padding-bottom: 1vh;
+  }
+
+  .container .adds div {
+    width: 90%;
+    min-height: 10vh;
+    padding: 0.8vh;
+    margin-top: 1vh;
+    border-radius: 1vh;
+    grid-template-columns: 18% 24% 24% 24% 10%;
+    align-items: center;
+  }
+
+  .container .adds div img {
+    width: 7vh;
+    height: 7vh;
+    min-width: 52px;
+    min-height: 52px;
+    max-width: 68px;
+    max-height: 68px;
+    object-fit: contain;
+  }
+
+  .container .adds div h1 {
+    font-size: 2.1vh;
+    line-height: 1.15;
+  }
+
+  .container .adds div p {
+    font-size: 1.55vh;
+    line-height: 1.35;
+  }
+
+  .container .adds div h3 {
+    font-size: 1.9vh;
+  }
+
+  /* =========================
+     الأخبار / المحتوى الداخلي
+  ========================= */
+  .container .section_News {
+    width: 90%;
+    height: calc(75vh - 55px);
+    padding: 1vh;
+  }
+
+  /* =========================
+     الفوتر
+  ========================= */
+  .container .footer {
+    width: 100%;
+    height: 6.2vh;
+    min-height: 52px;
+    max-height: 60px;
+  }
+
+  .container .footer div {
+    height: 6.2vh;
+    min-height: 52px;
+    max-height: 60px;
+  }
+
+  .container .footer .img div {
+    height: 6.2vh;
+    min-height: 52px;
+    max-height: 60px;
+  }
+
+  .container .footer div img {
+    width: 2.7vh;
+    height: 2.7vh;
+    min-width: 22px;
+    min-height: 22px;
+    max-width: 27px;
+    max-height: 27px;
+  }
+}
+
+
+/* =========================================================
+   iPad landscape الأكبر قليلاً
+========================================================= */
+@media screen and (min-width: 1024px) and (max-width: 1366px) and (orientation: landscape) {
+
+  .container {
+    max-width: 48%;
+  }
+
+  .container .proFile {
+    height: 22vh;
+  }
+
+  .container .views {
+    height: 31vh;
+  }
+
+  .container .views img {
+    height: 24.5vh;
+  }
+
+  .container .subjects div {
+    min-height: 11vh;
+  }
+
+  .container .subjects div img {
+    width: 5.4vh;
+    height: 5.4vh;
+  }
+
+  .container .subjects div h4 {
+    font-size: 1.55vh;
+  }
+}
