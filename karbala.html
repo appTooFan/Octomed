@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+  
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  
+  <title>موسوعه نور الولاية الطبية</title>
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="css/fonts.css">
+  <link rel="stylesheet" href="css/karbala.css">
+  
+  <link href="css/video-js.min.css" rel="stylesheet" />
+</head>
+ <script src='file:///android_asset/app.js'></script>
+<script>
+  app.SetScreenMode("Normal");
+  app.SetStatusBarColor("#37494F");
+    app.SetNavBarColor("#37474F");
+    app.SetOrientation("Portrait"); 
+   app.SetOptions("ScreenOn,IgnoreSslErrors,NoPause,NoKeys,NoThemeAlerts");
+
+    app.GetIPAddress();
+</script>
+<body>
+  <div class="container">
+   <div class="proFile">
+   <img src="img/med.png">
+   <div class="user_Name">
+     <h1>اهلا بك في تطبيقنا</h1>
+     <h3>علي امير</h3>
+   </div>
+   <div class="rate">
+     <h1></h1>
+   </div>
+   <div class="rate_Data">
+     <h1></h1>
+     <h3></h3>
+   </div>
+   <div class="pro_Level">
+     <div class="pro_Fill"></div>
+   </div>
+ </div>
+  
+  <div class="views">
+    <img>
+    <h1></h1>
+  </div>
+  <div class="subjects" id="change_Page">
+    
+  </div>
+  <div class="footer">
+    <div class="img img1">
+      <div>
+        <img src="img/0.svg" alt="home">
+      </div>
+    </div>
+    <div class="img img2">
+      <div>
+        <img src="img/1.svg" alt="exam">
+      </div>
+    </div>
+    <div class="img img3">
+      <div>
+        <img src="img/2.svg" alt="notification">
+      </div>
+    </div>
+    <div class="img img4">
+      <div>
+        <img src="img/3.svg" alt="settings">
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<script src="js/home.js"></script>
+<script src="js/adds.js"></script>
+<script src="js/swiper.js"></script>
+<script src="js/progresslevel.js"></script>
+
+
+<script>
+app.EnableBackKey( false );     
+function OnBack()
+{
+  goBackView();
+  app.Vibrate("5");
+}
+
+</script>
+</body>
+</html>
