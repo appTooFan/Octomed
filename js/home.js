@@ -1,0 +1,1677 @@
+/*****************************************************************************************
+ *  home.js  (SINGLE FILE - NO jQuery)
+ *
+ *  Fast + Non-Freezing Version
+ *
+ *  Features:
+ *   - Works in normal WebView without DroidScript
+ *   - Works with DroidScript if available
+ *   - Local lesson loading first (DroidScript mode)
+ *   - GitHub fallback
+ *   - Full lesson downloader using DroidScript CreateDownloader
+ *   - Lazy loading for local files (no heavy checking on lesson open)
+ *   - Avoids UI freeze by NOT reading all files at startup
+ *
+ *  Local lesson structure:
+ *   /sdcard/Android/data/myapps/lessons/0/0/0
+ *
+ *  Repo:
+ *   - owner: appTooFan
+ *   - repo : Rafigtalib
+ *   - branch: main
+ *****************************************************************************************/
+
+
+/* =======================================================================================
+   0) DOM + Compatibility
+======================================================================================= */
+
+window.change_Page = document.querySelector("#change_Page");
+window.footerdiv = document.querySelectorAll(".footer .img");
+window.footerimg = document.querySelectorAll(".footer div div img");
+
+
+/* =======================================================================================
+   1) Helpers
+======================================================================================= */
+
+function qs(sel) { return document.querySelector(sel); }
+function qsa(sel){ return document.querySelectorAll(sel); }
+
+function show(sel, display="block"){
+  const el = qs(sel);
+  if(el) el.style.display = display;
+}
+
+function hide(sel){
+  const el = qs(sel);
+  if(el) el.style.display = "none";
+}
+
+function softNavigate(fn, delay=300){
+  setTimeout(fn, delay);
+}
+
+function escapeHtml(str){
+  return String(str || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function byExt(name, exts){
+  const n = (name || "").toLowerCase();
+  return exts.some(ext => n.endsWith(ext));
+}
+
+function guessMimeType(path){
+  const p = (path || "").toLowerCase();
+
+  if(p.endsWith(".mp3")) return "audio/mpeg";
+  if(p.endsWith(".wav")) return "audio/wav";
+  if(p.endsWith(".ogg")) return "audio/ogg";
+
+  if(p.endsWith(".mp4")) return "video/mp4";
+  if(p.endsWith(".webm")) return "video/webm";
+  if(p.endsWith(".mkv")) return "video/mp4";
+  if(p.endsWith(".m3u8")) return "application/x-mpegURL";
+
+  if(p.endsWith(".png")) return "image/png";
+  if(p.endsWith(".jpg") || p.endsWith(".jpeg")) return "image/jpeg";
+  if(p.endsWith(".webp")) return "image/webp";
+  if(p.endsWith(".gif")) return "image/gif";
+  if(p.endsWith(".svg")) return "image/svg+xml";
+
+  if(p.endsWith(".pdf")) return "application/pdf";
+  if(p.endsWith(".html") || p.endsWith(".htm")) return "text/html";
+
+  return "application/octet-stream";
+}
+
+
+/* =======================================================================================
+   2) classremove
+======================================================================================= */
+
+window.classremove = window.classremove || function classremove(){
+  if (!window.change_Page) return;
+  change_Page.className = "";
+
+  const pro = qs(".proFile");
+  if (pro) pro.style.display = "grid";
+};
+
+
+/* =======================================================================================
+   3) Back Manager
+======================================================================================= */
+
+let currentView = null;
+let lastLessonViewFn = null;
+
+function setCurrentView(fn){
+  currentView = fn;
+}
+
+function goBackView(){
+  if(typeof currentView === "function") currentView();
+}
+
+
+/* =======================================================================================
+   4) Environment Detection
+======================================================================================= */
+
+function getDSApp(){
+  try{
+    if(typeof app !== "undefined" && app) return app;
+  }catch(e){}
+
+  try{
+    if(window.app) return window.app;
+  }catch(e){}
+
+  try{
+    if(window.parent && window.parent.app) return window.parent.app;
+  }catch(e){}
+
+  try{
+    if(parent && parent.app) return parent.app;
+  }catch(e){}
+
+  return null;
+}
+
+function hasDroidScript(){
+  return !!getDSApp();
+}
+
+
+/* =======================================================================================
+   5) GitHub Config + API + CDN
+======================================================================================= */
+
+const GH = {
+  owner: "appTooFan",
+  repo: "Rafigtalib",
+  branch: "main",
+  apiBase: "https://api.github.com",
+  cdnBase: "https://cdn.jsdelivr.net/gh/appTooFan/Rafigtalib@main"
+};
+
+const GH_TOKEN = null;
+
+function ghHeaders(){
+  const h = { "Accept": "application/vnd.github+json" };
+  if (GH_TOKEN) h["Authorization"] = "token " + GH_TOKEN;
+  return h;
+}
+
+async function ghListDir(path){
+  const url = `${GH.apiBase}/repos/${GH.owner}/${GH.repo}/contents/${encodeURIComponent(path)}?ref=${GH.branch}`;
+  const res = await fetch(url, { headers: ghHeaders() });
+  if(!res.ok) throw new Error("GitHub API failed: " + res.status);
+  const data = await res.json();
+  return Array.isArray(data) ? data : [];
+}
+
+function cdnUrl(path){
+  path = (path || "").replace(/^\/+/,"");
+  return `${GH.cdnBase}/${path}`;
+}
+
+
+/* =======================================================================================
+   6) DroidScript Helpers
+======================================================================================= */
+
+function getDsAppPath(){
+  const dsApp = getDSApp();
+  if(!dsApp) return "";
+
+  try{
+    if(typeof dsApp.GetAppPath === "function"){
+      return dsApp.GetAppPath() || "";
+    }
+  }catch(e){
+    console.log("GetAppPath error:", e);
+  }
+
+  return "";
+}
+
+function getAppBasePath(){
+  //return "/storage/emulated/0/Android/data/com.smartphoneremote.androidscriptfree/files/DroidScript/karbala"
+  return app.GetPrivateFolder("temp");
+}
+
+function fileExists(path){
+  const dsApp = getDSApp();
+  if(!dsApp || !path) return false;
+
+  try{
+    if(typeof dsApp.FileExists === "function"){
+      return !!dsApp.FileExists(path);
+    }
+  }catch(e){
+    console.log("FileExists error:", e);
+  }
+
+  return false;
+}
+
+function folderExists(path){
+  const dsApp = getDSApp();
+  if(!dsApp || !path) return false;
+
+  try{
+    if(typeof dsApp.FolderExists === "function"){
+      return !!dsApp.FolderExists(path);
+    }
+  }catch(e){
+    console.log("FolderExists error:", e);
+  }
+
+  try{
+    if(typeof dsApp.IsFolder === "function"){
+      return !!dsApp.IsFolder(path);
+    }
+  }catch(e){
+    console.log("IsFolder error:", e);
+  }
+
+  return false;
+}
+
+function listFolderSafe(path, filter){
+  const dsApp = getDSApp();
+  if(!dsApp || !path) return [];
+
+  try{
+    if(typeof dsApp.ListFolder === "function"){
+      const result = dsApp.ListFolder(path, filter || "");
+      return Array.isArray(result) ? result : [];
+    }
+  }catch(e){
+    console.log("ListFolder error:", e);
+  }
+
+  return [];
+}
+
+function makeFolderIfNeeded(path){
+  const dsApp = getDSApp();
+  if(!dsApp || !path) return false;
+
+  try{
+    if(typeof dsApp.MakeFolder === "function"){
+      dsApp.MakeFolder(path);
+      return true;
+    }
+  }catch(e){
+    console.log("MakeFolder failed:", e);
+  }
+
+  return false;
+}
+
+function writeFileSafe(path, text){
+  const dsApp = getDSApp();
+  if(!dsApp || !path) return false;
+
+  try{
+    if(typeof dsApp.WriteFile === "function"){
+      dsApp.WriteFile(path, text);
+      return true;
+    }
+  }catch(e){
+    console.log("WriteFile failed:", e);
+  }
+
+  return false;
+}
+
+function readFileSafe(path){
+  const dsApp = getDSApp();
+  if(!dsApp || !path) return "";
+
+  try{
+    if(typeof dsApp.ReadFile === "function"){
+      return dsApp.ReadFile(path) || "";
+    }
+  }catch(e){
+    console.log("ReadFile error:", e);
+  }
+
+  return "";
+}
+
+function readFileBase64Safe(path){
+  const dsApp = getDSApp();
+  if(!dsApp || !path) return "";
+
+  try{
+    if(typeof dsApp.ReadFile === "function"){
+      return dsApp.ReadFile(path, "base64") || "";
+    }
+  }catch(e){
+    console.log("ReadFile(base64) error:", e);
+  }
+
+  return "";
+}
+
+/**
+ * مهم:
+ * لا تستخدم Base64 للملفات الكبيرة عند البداية.
+ * هذه الدالة تستخدم فقط عند الحاجة، وغالبًا الأفضل المسار المباشر.
+ */
+function resolveMediaSource(path, mimeType, preferDirectPath=true){
+  if(!path) return "";
+
+  if(preferDirectPath) return path;
+
+  if(!hasDroidScript()) return path;
+
+  try{
+    const base64 = readFileBase64Safe(path);
+    if(base64){
+      return `data:${mimeType || guessMimeType(path)};base64,${base64}`;
+    }
+  }catch(e){
+    console.log("resolveMediaSource error:", e);
+  }
+
+  return path;
+}
+
+function writeLessonInfoFile(folderPath, infoObj){
+  const jsonPath = folderPath + "/lesson_info.json";
+  return writeFileSafe(jsonPath, JSON.stringify(infoObj, null, 2));
+}
+
+
+/* =======================================================================================
+   7) Footer UI
+======================================================================================= */
+
+(function initFooter(){
+  const items = qsa(".footer .img");
+  if(!items.length) return;
+
+  const first = qs(".footer .img1");
+  if(first){
+    first.style.borderTop = "0.8vh solid var(--app-color)";
+    const img = first.querySelector("div img");
+    if(img) img.src = `img/footer/black/0active.svg`;
+  }
+
+  items.forEach((item, ind) => {
+    item.onclick = function(){
+      items.forEach((ele, idx) => {
+        ele.style.borderTop = "0.2vh solid var(--borderFooter-color)";
+        const icon = ele.querySelector("img");
+        if(icon) icon.src = `img/${idx}.svg`;
+      });
+
+      this.style.borderTop = "0.8vh solid var(--app-color)";
+      const icon = this.querySelector("img");
+      if(icon) icon.src = `img/footer/black/${ind}active.svg`;
+
+      localStorage.setItem("onback", ind);
+    };
+  });
+})();
+
+
+/* =======================================================================================
+   8) Views Slider
+======================================================================================= */
+
+(function initViewsSlider(){
+  const photoviews = [
+    { img:"18views", text:" الفشل هو مجموعة تجارب تسبق النجاح " },
+    { img:"19views", text:" بدل ان تلعن الظلام اوقد شمعة " },
+    { img:"20views", text:" الارادة القوية تقصر المسافات" },
+    { img:"21views", text:"الوقت من ذهب إن لم تدركه ذهب" },
+    { img:"22views", text:"احذر ان تكون أهدافك مجرد أمنيات.. أو رغبات.. فتلك بضاعة الفقراء " },
+    { img:"23views", text:"الأسباب الخمسة للنجاح : التركيز، التميز، التنظيم، التطوير، والتصميم " },
+    { img:"24views", text:"أربع خطط للإنجاز : خطط، حضر، نفذ، تابع . " },
+    { img:"25views", text:" اذا أردت أن تحلم فلتكن أحلامك عظيمة " },
+    { img:"26views", text:"غيٌر أفكارك لتتمكن من تغيير العالم" },
+    { img:"27views", text:"رحلة الألف ميل تبدأ بخطوة واحدة" },
+    { img:"28views", text:"ان من لا يواجه التحديات، لا يعمل شيئا" },
+    { img:"29views", text:"النجاح هو القيام بالأعمال العادية بطريقة غير عادية" },
+    { img:"30views", text:"إن النجاح لا يحتاج إلى أقدام بل إلى إقدام" },
+    { img:"31views", text:" النجاح هو الإنتقال من فشل إلى فشل، دون أن نفقد الأمل" },
+    { img:"32views", text:" فن أن تكون مرة شجاعاً ومرة حذراً هو فن النجاح" },
+    { img:"33views", text:" النجاح هو القاضي الدنيوي الوحيد للصواب والخطأ" },
+    { img:"34views", text:" العلم ما نفع، ليس العلم ما حفظ" },
+    { img:"35views", text:" العلم هو دواء لسموم الخرافات" },
+    { img:"36views", text:" التعليم ليس أستعداداً للحياة، إنه الحياة ذاتها" },
+    { img:"37views", text:"لا تسأل الله ان يخفف حملك، ولكن اسأله ان يقوي ظهرك " },
+    { img:"38views", text:"اذا كنت مع الله فانت مع الاغلبيه المطلقه" },
+    { img:"39views", text:"اللحظة قد تغير يومك. اليوم قد يغير حياتك. حياتك قد تغير العالم" },
+    { img:"40views", text:"المثابرة عامل مهم من عوامل النجاح" },
+    { img:"41views", text:"الانسان الناجح هو الانسان الذي يستغل الفرص" },
+    { img:"42views", text:"العمل الجاد هو الثمن الذي ندفعه مقابل النجاح" },
+    { img:"43views", text:"فكرة واحدة قد تدفعك نحو النجاح" },
+    { img:"44views", text:"خلف كل رجل ناجح هناك الكثير من السنوات الفاشلة" },
+    { img:"45views", text:"اذا سعيت نحو أهدافك، أهدافك بدورها ستعسى نحوك" },
+    { img:"46views", text:"عش في خيالك، ليس في ماضيك" },
+    { img:"47views", text:"الدراسة بلا تركيز كالسفر بلا خريطة" },
+    { img:"48views", text:"الدراسة بلا فهم كالبناء بلا أساس" },
+    { img:"49views", text:"الفشل هو المعلم الأول للنجاح" },
+    { img:"50views", text:"الدراسة هي الاستثمار الوحيد الذي لا يفقد قيمته" },
+    { img:"51views", text:"الدراسة مفتاح العلم، والعلم مفتاح النجاح" },
+    { img:"52views", text:"الدراسة هي الجسر الذي يعبر بك من الحلم إلى الواقع" }
+  ];
+
+  const imgEl = qs(".views img");
+  const h1El = qs(".views h1");
+  if(!imgEl || !h1El) return;
+
+  imgEl.src = `img/views/17views.svg`;
+  h1El.textContent = "لا يوجد شيئ أسمه الفشل، بل هو فرصة للتعلم ";
+
+  let idx = -1;
+  setInterval(() => {
+    idx++;
+    if(idx >= photoviews.length) idx = 0;
+    imgEl.src = `img/views/${photoviews[idx].img}.svg`;
+    h1El.textContent = photoviews[idx].text;
+  }, 5000);
+})();
+
+
+/* =======================================================================================
+   9) Home HTML
+======================================================================================= */
+
+const them = "black";
+window.homeinnerhtml = `
+<swiper-container class="mySwiper" pagination="false">
+  <swiper-slide>
+    <div><img src="img/subjects/${them}/anatomy.png"><h4>الهيكلي العضلي</h4></div>
+    <div><img src="img/subjects/${them}/doctor.png"><h4>علم الأوبئة</h4></div>
+    <div><img src="img/subjects/${them}/abc.png"><h4>انجليزي</h4></div>
+    <div><img src="img/subjects/${them}/dna.png"><h4>علم الأمراض</h4></div>
+    <div><img src="img/subjects/${them}/biochemistry.png"><h4>علم الأدوية</h4></div>
+    <div><img src="img/subjects/${them}/Biology.png"><h4>التغذيه</h4></div>
+    <div><img src="img/subjects/${them}/newton.png"><h4>مهارات الحاسوب</h4></div>
+    <div><img src="img/subjects/${them}/quran.png"><h4>القرآن</h4></div>
+    <div><img src="img/subjects/${them}/arabic-language.png"><h4>اللغه العربيه</h4></div>
+  </swiper-slide>
+
+  <swiper-slide>
+    <div><img src="img/subjects/${them}/military.png"><h4>الصراع الإسرائيلي</h4></div>
+    <div><img src="img/subjects/${them}/newton.png"><h4>مهارات التعلم</h4></div>
+  </swiper-slide>
+</swiper-container>
+`;
+
+
+/* =======================================================================================
+   10) Subjects Database
+======================================================================================= */
+
+const schoolSubjects = [
+  { subject: "التشريح", units: [
+      { unitNumber: "الفصل الدراسي الأول", lessons: ["الكربوهيدرات", "الاحماض"] },
+      { unitNumber: "الفصل الدراسي الثاني", lessons: [] },
+      { unitNumber: "الفصل الدراسي الصيفي", lessons: [] }
+  ]},
+  { subject: "الفسلوجيا", units: [
+      { unitNumber: "الفصل الدراسي الأول", lessons: [] },
+      { unitNumber: "الفصل الدراسي الثاني", lessons: [] },
+      { unitNumber: "الفصل الدراسي الصيفي", lessons: [] }
+  ]},
+  { subject: "الكيمياء الحيويه", units: [
+      { unitNumber: "الفصل الدراسي الأول", lessons: [] },
+      { unitNumber: "الفصل الدراسي الثاني", lessons: [] },
+      { unitNumber: "الفصل الدراسي الصيفي", lessons: [] }
+  ]},
+  { subject: "علم الاجنه", units: [
+      { unitNumber: "الفصل الدراسي الأول", lessons: [] },
+      { unitNumber: "الفصل الدراسي الثاني", lessons: [] },
+      { unitNumber: "الفصل الدراسي الصيفي", lessons: [] }
+  ]},
+  { subject: "علم الانسجه", units: [
+      { unitNumber: "الفصل الدراسي الأول", lessons: [] },
+      { unitNumber: "الفصل الدراسي الثاني", lessons: [] },
+      { unitNumber: "الفصل الدراسي الصيفي", lessons: [] }
+  ]},
+  { subject: "تشريح عملي", units: [
+      { unitNumber: "الفصل الدراسي الأول", lessons: [] },
+      { unitNumber: "الفصل الدراسي الثاني", lessons: [] },
+      { unitNumber: "الفصل الدراسي الصيفي", lessons: [] }
+  ]},
+  { subject: "الانسجه عملي", units: [
+      { unitNumber: "الفصل الدراسي الأول", lessons: [] },
+      { unitNumber: "الفصل الدراسي الثاني", lessons: [] },
+      { unitNumber: "الفصل الدراسي الصيفي", lessons: [] }
+  ]},
+  { subject: "كيمياء حيويه عملي", units: [
+      { unitNumber: "الفصل الدراسي الأول", lessons: [] },
+      { unitNumber: "الفصل الدراسي الثاني", lessons: [] },
+      { unitNumber: "الفصل الدراسي الصيفي", lessons: [] }
+  ]},
+  { subject: "اللغه العربيه", units: [
+      { unitNumber: "الفصل الدراسي الأول", lessons: [] },
+      { unitNumber: "الفصل الدراسي الثاني", lessons: [] },
+      { unitNumber: "الفصل الدراسي الصيفي", lessons: [] }
+  ]},
+  { subject: "الثقافه الإسلاميه", units: [
+      { unitNumber: "الفصل الدراسي الأول", lessons: [] },
+      { unitNumber: "الفصل الدراسي الثاني", lessons: [] },
+      { unitNumber: "الفصل الدراسي الصيفي", lessons: [] }
+  ]},
+  { subject: "مهارات التعلم", units: [
+      { unitNumber: "الفصل الدراسي الأول", lessons: [] },
+      { unitNumber: "الفصل الدراسي الثاني", lessons: [] },
+      { unitNumber: "الفصل الدراسي الصيفي", lessons: [] }
+  ]}
+];
+
+function setFooterActive(activeIndex) {
+  const items = document.querySelectorAll(".footer .img");
+  if (!items || !items.length) return;
+
+  items.forEach((item, idx) => {
+    item.style.borderTop = "0.2vw solid var(--borderFooter-color)";
+    const icon = item.querySelector("img");
+    if (icon) icon.src = `img/${idx}.svg`;
+  });
+
+  const activeItem = items[activeIndex];
+  if (!activeItem) return;
+
+  activeItem.style.borderTop = "0.8vh solid var(--app-color)";
+  const activeIcon = activeItem.querySelector("img");
+  if (activeIcon) activeIcon.src = `img/footer/black/${activeIndex}active.svg`;
+
+  localStorage.setItem("onback", activeIndex);
+}
+
+
+/* =======================================================================================
+   11) Navigation Screens
+======================================================================================= */
+
+function renderSubjectsHome(){
+
+  setFooterActive(0);
+  setCurrentView(renderSubjectsHome);
+
+  classremove();
+  change_Page.classList.add("subjects");
+  change_Page.innerHTML = window.homeinnerhtml || `<div style="padding:20px;text-align:center">homeinnerhtml غير موجود</div>`;
+
+  show(".views", "block");
+  bindSubjectsClicks();
+}
+
+(function bindFooterHomeAlways(){
+  const items = document.querySelectorAll(".footer .img");
+  if (!items || !items.length) return;
+
+  const homeBtn = items[0];
+  homeBtn.addEventListener("click", function () {
+    setFooterActive(0);
+    renderSubjectsHome();
+  });
+})();
+
+function bindSubjectsClicks(){
+  const cards = qsa("#change_Page swiper-container swiper-slide div");
+  cards.forEach((div, subjectIndex) => {
+    div.addEventListener("click", () => {
+      softNavigate(() => openSubject(subjectIndex), 300);
+    });
+  });
+}
+//let resf = false;
+function openSubject(subjectIndex){
+  localStorage.setItem("subject", subjectIndex);
+ const hash = window.location.hash;
+      const unitMatch = hash.match(/^#\/materials\/(\d+)$/);
+      if(!unitMatch)
+  {
+    history.pushState({page:"materials"},"",`#/materials/${subjectIndex}`)
+    
+  }
+  setCurrentView(renderSubjectsHome);
+  
+
+  classremove();
+  change_Page.innerHTML = "";
+  hide(".views");
+  change_Page.classList.add("lessons");
+
+  const units = schoolSubjects[subjectIndex]?.units || [];
+  units.forEach((unit, i) => {
+    const card = document.createElement("div");
+
+    const img = document.createElement("img");
+    img.src = `img/numbers/${i+1}.png`;
+
+    const h1 = document.createElement("h1");
+    h1.textContent = unit.unitNumber;
+
+    const p = document.createElement("p");
+    p.innerHTML = `الوحده <span>${i+1}</span> تحتوي على <strong>${unit.lessons.length}</strong> درس`;
+
+    card.appendChild(img);
+    card.appendChild(h1);
+    card.appendChild(p);
+
+    card.addEventListener("click", () => softNavigate(() => openUnit(subjectIndex, i), 300));
+    change_Page.appendChild(card);
+  });
+}
+
+function openUnit(subjectIndex, unitIndex){
+  const hash = window.location.hash;
+      const unitMatch = hash.match(/^#\/subject\/(\d+)\/\units\/(\d+)$/);
+      if(!unitMatch)
+  {
+    history.pushState({page:"units"},"",`#/subject/${subjectIndex}/units/${unitIndex}`)
+    
+  }
+  setCurrentView(() => openSubject(subjectIndex));
+
+  classremove();
+  change_Page.innerHTML = "";
+  change_Page.classList.add("listlessons");
+
+  const lessons = schoolSubjects[subjectIndex]?.units?.[unitIndex]?.lessons || [];
+  lessons.forEach((lessonName, lessonIndex) => {
+    const div = document.createElement("div");
+    div.classList.add("div_Items");
+
+    const percent = lessonIndex * 0.5;
+
+    div.innerHTML = `
+      <img src="img/lessons/lesson${lessonIndex+1}.png">
+      <h1>${lessonName}</h1>
+      <p>درس <strong>${lessonIndex+1}</strong> في ${schoolSubjects[subjectIndex].units[unitIndex].unitNumber}</p>
+      <img src="img/downloadLesson.svg" class="down_Lesson">
+      <div class="con_Progress">
+        <div class="pro_Level"><div class="pro_Fill" style="width:${percent}%"></div></div>
+        <div class="level">${percent}%</div>
+      </div>
+    `;
+
+    div.addEventListener("click", () => {
+      softNavigate(() => openLessonView(subjectIndex, unitIndex, lessonIndex, lessonName), 300);
+    });
+
+    change_Page.appendChild(div);
+  });
+}
+
+
+/* =======================================================================================
+   12) GitHub Loaders
+======================================================================================= */
+
+async function loadLessonFromGitHub(s, u, l){
+  const base = `${s}/${u}/${l}`;
+
+  const audioSrc   = cdnUrl(`${base}/sound.mp3`);
+  const doctorPdf  = cdnUrl(`${base}/book.pdf`);
+  const reviewHtml = cdnUrl(`${base}/review.html`);
+
+  return {
+    base,
+    source: "github",
+    audioSrc,
+    doctorPdf,
+    reviewHtml,
+    videosDir: `${base}/videos`,
+    booksDir: `${base}/books`,
+    shotsDir: `${base}/screenshot`
+  };
+}
+
+async function listRemoteVideos(subjectIndex, unitIndex, lessonIndex){
+  try{
+    const base = `${subjectIndex}/${unitIndex}/${lessonIndex}/videos`;
+    const items = await ghListDir(base);
+    return items
+      .filter(x => x.type === "file" && byExt(x.name, [".mp4", ".webm", ".mkv", ".m3u8"]))
+      .map(x => ({
+        name: x.name,
+        url: cdnUrl(`${base}/${encodeURIComponent(x.name)}`),
+        local: false
+      }));
+  }catch(e){
+    return [];
+  }
+}
+
+async function listRemoteBooks(subjectIndex, unitIndex, lessonIndex){
+  try{
+    const base = `${subjectIndex}/${unitIndex}/${lessonIndex}/books`;
+    const items = await ghListDir(base);
+    return items
+      .filter(x => x.type === "file" && byExt(x.name, [".pdf"]))
+      .map(x => ({
+        name: x.name,
+        title: x.name.replace(/\.pdf$/i, ""),
+        url: cdnUrl(`${base}/${encodeURIComponent(x.name)}`),
+        local: false
+      }));
+  }catch(e){
+    return [];
+  }
+}
+
+async function listRemoteShots(subjectIndex, unitIndex, lessonIndex){
+  try{
+    const base = `${subjectIndex}/${unitIndex}/${lessonIndex}/screenshot`;
+    const items = await ghListDir(base);
+    return items
+      .filter(x => x.type === "file" && byExt(x.name, [".png", ".jpg", ".jpeg", ".webp", ".gif"]))
+      .map(x => ({
+        name: x.name,
+        url: cdnUrl(`${base}/${encodeURIComponent(x.name)}`),
+        local: false
+      }));
+  }catch(e){
+    return [];
+  }
+}
+
+
+/* =======================================================================================
+   13) Local Lesson Loaders (Lightweight / Lazy)
+======================================================================================= */
+
+function getLocalLessonRoot(subjectIndex, unitIndex, lessonIndex){
+  const base = getAppBasePath();
+  return `${base}/lessons/${subjectIndex}/${unitIndex}/${lessonIndex}`;
+}
+
+/**
+ * هذه النسخة خفيفة جدًا:
+ * لا تقرأ الفيديوهات ولا الصور ولا PDF عند فتح الدرس
+ * فقط تتحقق من وجود مجلد الدرس أو ملف رئيسي
+ */
+function loadLessonFromLocal(subjectIndex, unitIndex, lessonIndex){
+  if(!hasDroidScript()) return null;
+
+  const root = getLocalLessonRoot(subjectIndex, unitIndex, lessonIndex);
+
+  if(!folderExists(root) && !fileExists(root + "/lesson_info.json") && !fileExists(root + "/sound.mp3") && !fileExists(root + "/book.pdf")){
+    return null;
+  }
+
+  return {
+    base: root,
+    source: "local",
+    audioSrc: root + "/sound.mp3",
+    doctorPdf: root + "/book.pdf",
+    reviewHtml: root + "/review.html",
+    videosDir: root + "/videos",
+    booksDir: root + "/books",
+    shotsDir: root + "/screenshot"
+  };
+}
+
+async function loadLessonData(subjectIndex, unitIndex, lessonIndex){
+  const localData = loadLessonFromLocal(subjectIndex, unitIndex, lessonIndex);
+  if(localData) return localData;
+  return await loadLessonFromGitHub(subjectIndex, unitIndex, lessonIndex);
+}
+
+
+/* =======================================================================================
+   14) Lazy List Builders
+======================================================================================= */
+
+function listLocalVideos(videosDir){
+  if(!hasDroidScript() || !folderExists(videosDir)) return [];
+
+  return listFolderSafe(videosDir)
+    .filter(name => byExt(name, [".mp4",".webm",".mkv",".m3u8"]))
+    .map(name => ({
+      name,
+      url: videosDir + "/" + name,
+      local: true
+    }));
+}
+
+function listLocalBooks(booksDir){
+  if(!hasDroidScript() || !folderExists(booksDir)) return [];
+
+  return listFolderSafe(booksDir)
+    .filter(name => byExt(name, [".pdf"]))
+    .map(name => ({
+      name,
+      title: name.replace(/\.pdf$/i, ""),
+      url: booksDir + "/" + name,
+      local: true
+    }));
+}
+
+function listLocalShots(shotsDir){
+  if(!hasDroidScript() || !folderExists(shotsDir)) return [];
+
+  return listFolderSafe(shotsDir)
+    .filter(name => byExt(name, [".png",".jpg",".jpeg",".webp",".gif"]))
+    .map(name => ({
+      name,
+      url: shotsDir + "/" + name,
+      local: true
+    }));
+}
+
+
+/* =======================================================================================
+   15) Download Helpers (DroidScript only)
+======================================================================================= */
+
+async function urlExists(url){
+  try{
+    const head = await fetch(url, { method:"HEAD" });
+    if(head.ok) return true;
+  }catch(e){}
+
+  try{
+    const get = await fetch(url, { method:"GET" });
+    return get.ok;
+  }catch(e){
+    return false;
+  }
+}
+
+function fileNameFromUrl(url, fallback="file"){
+  try{
+    const clean = String(url || "").split("?")[0].split("#")[0];
+    const last = clean.substring(clean.lastIndexOf("/") + 1);
+    return decodeURIComponent(last || fallback);
+  }catch(e){
+    return fallback;
+  }
+}
+
+async function buildLessonDownloadQueue(subjectIndex, unitIndex, lessonIndex, lessonTitle){
+  const base = getAppBasePath();
+  const rootFolder = getLocalLessonRoot(subjectIndex, unitIndex, lessonIndex);
+
+  makeFolderIfNeeded(base);
+  makeFolderIfNeeded(base + "/lessons");
+  makeFolderIfNeeded(base + "/lessons/" + subjectIndex);
+  makeFolderIfNeeded(base + "/lessons/" + subjectIndex + "/" + unitIndex);
+  makeFolderIfNeeded(rootFolder);
+  makeFolderIfNeeded(rootFolder + "/videos");
+  makeFolderIfNeeded(rootFolder + "/books");
+  makeFolderIfNeeded(rootFolder + "/screenshot");
+
+  const baseRemote = `${subjectIndex}/${unitIndex}/${lessonIndex}`;
+
+  const audioSrc   = cdnUrl(`${baseRemote}/sound.mp3`);
+  const doctorPdf  = cdnUrl(`${baseRemote}/book.pdf`);
+  const reviewHtml = cdnUrl(`${baseRemote}/review.html`);
+
+  const remoteVideos = await listRemoteVideos(subjectIndex, unitIndex, lessonIndex);
+  const remoteBooks  = await listRemoteBooks(subjectIndex, unitIndex, lessonIndex);
+  const remoteShots  = await listRemoteShots(subjectIndex, unitIndex, lessonIndex);
+
+  writeLessonInfoFile(rootFolder, {
+    app: "Rafigtalib",
+    repo: `${GH.owner}/${GH.repo}`,
+    branch: GH.branch,
+    dsAppPath: getDsAppPath(),
+    storageBase: base,
+    rootPath: rootFolder,
+    subjectIndex,
+    unitIndex,
+    lessonIndex,
+    lessonPathPattern: `${subjectIndex}/${unitIndex}/${lessonIndex}`,
+    lessonTitle: lessonTitle || "",
+    downloadedAt: new Date().toISOString(),
+    counts: {
+      videos: remoteVideos.length,
+      books: remoteBooks.length,
+      screenshots: remoteShots.length
+    }
+  });
+
+  const queue = [];
+
+  const fixedFiles = [
+    { url: audioSrc,   folder: rootFolder, name: "sound.mp3" },
+    { url: doctorPdf,  folder: rootFolder, name: "book.pdf" },
+    { url: reviewHtml, folder: rootFolder, name: "review.html" }
+  ];
+
+  for(const item of fixedFiles){
+    if(item.url && await urlExists(item.url)){
+      queue.push(item);
+    }
+  }
+
+  remoteVideos.forEach(v => {
+    queue.push({
+      url: v.url,
+      folder: rootFolder + "/videos",
+      name: v.name || fileNameFromUrl(v.url, "video.mp4")
+    });
+  });
+
+  remoteBooks.forEach(b => {
+    queue.push({
+      url: b.url,
+      folder: rootFolder + "/books",
+      name: b.name || fileNameFromUrl(b.url, "book.pdf")
+    });
+  });
+
+  remoteShots.forEach(s => {
+    queue.push({
+      url: s.url,
+      folder: rootFolder + "/screenshot",
+      name: s.name || fileNameFromUrl(s.url, "image.jpg")
+    });
+  });
+
+  return { queue, rootFolder };
+}
+
+async function downloadLessonPackage(subjectIndex, unitIndex, lessonIndex, lessonTitle){
+  const dsApp = getDSApp();
+
+  if(!dsApp){
+    alert("ميزة التحميل تعمل فقط مع DroidScript");
+    return;
+  }
+
+  if(typeof dsApp.CreateDownloader !== "function"){
+    alert("CreateDownloader غير متوفرة في DroidScript الحالي");
+    return;
+  }
+
+  const statusEl = document.getElementById("lessonStatus");
+
+  try{
+    if(statusEl) statusEl.textContent = "جارِ تجهيز قائمة التحميل ...";
+
+    const { queue, rootFolder } = await buildLessonDownloadQueue(
+      subjectIndex,
+      unitIndex,
+      lessonIndex,
+      lessonTitle
+    );
+
+    if(!queue.length){
+      if(statusEl) statusEl.textContent = "لا توجد ملفات متاحة للتحميل";
+      alert("لا توجد ملفات متاحة للتحميل");
+      return;
+    }
+
+    if(statusEl) statusEl.textContent = `جارِ بدء التحميل (${queue.length} ملف) ...`;
+
+    let currentIndex = 0;
+    const downloader = dsApp.CreateDownloader("NoDialog");
+
+    function startNextDownload(){
+      if(currentIndex >= queue.length){
+        if(statusEl){
+          statusEl.textContent = `اكتمل تحميل الدرس ✅\nالمسار: ${rootFolder}`;
+        }
+        if(typeof dsApp.ShowPopup === "function"){
+          dsApp.ShowPopup("اكتمل تحميل الدرس بالكامل");
+        }
+        return;
+      }
+
+      const item = queue[currentIndex];
+
+      if(statusEl){
+        statusEl.textContent = `تحميل الملف ${currentIndex + 1} من ${queue.length}\n${item.name}`;
+      }
+
+      try{
+        downloader.Download(item.url, item.folder, item.name);
+      }catch(err){
+        console.log("Download start error:", err);
+        currentIndex++;
+        startNextDownload();
+      }
+    }
+
+    downloader.SetOnComplete(function(){
+      currentIndex++;
+      startNextDownload();
+    });
+
+    downloader.SetOnDownload(function(path){
+      console.log("Downloaded:", path);
+    });
+
+    downloader.SetOnError(function(error){
+      console.log("Download error:", error);
+      if(statusEl){
+        statusEl.textContent = `حدث خطأ أثناء تحميل الملف ${currentIndex + 1} من ${queue.length}\nسيتم تخطيه والمتابعة...`;
+      }
+      currentIndex++;
+      startNextDownload();
+    });
+
+    downloader.SetOnCancel(function(){
+      if(statusEl) statusEl.textContent = "تم إلغاء التحميل";
+      if(typeof dsApp.ShowPopup === "function"){
+        dsApp.ShowPopup("تم إلغاء التحميل");
+      }
+    });
+
+    startNextDownload();
+
+  }catch(err){
+    console.log("downloadLessonPackage error:", err);
+    if(statusEl) statusEl.textContent = "فشل تجهيز التحميل ❌";
+    alert("فشل تجهيز التحميل: " + err.message);
+  }
+}
+
+
+/* =======================================================================================
+   16) Save / Restore Current Lesson
+======================================================================================= */
+
+function saveCurrentLessonState(subjectIndex, unitIndex, lessonIndex, lessonTitle = "") {
+  localStorage.setItem("return_subject_index", String(subjectIndex));
+  localStorage.setItem("return_unit_index", String(unitIndex));
+  localStorage.setItem("return_lesson_index", String(lessonIndex));
+  localStorage.setItem("return_lesson_title", lessonTitle || "");
+}
+
+function restoreLessonIfNeeded() {
+  setFooterActive(0);
+  hide(".proFile");
+  hide(".views");
+
+  const shouldReturn = localStorage.getItem("return_to_lesson");
+  if (shouldReturn !== "1") return false;
+
+  const subjectIndex = parseInt(localStorage.getItem("return_subject_index"), 10);
+  const unitIndex = parseInt(localStorage.getItem("return_unit_index"), 10);
+  const lessonIndex = parseInt(localStorage.getItem("return_lesson_index"), 10);
+  let lessonTitle = localStorage.getItem("return_lesson_title") || "";
+
+  if (Number.isNaN(subjectIndex) || Number.isNaN(unitIndex) || Number.isNaN(lessonIndex)) {
+    localStorage.removeItem("return_to_lesson");
+    return false;
+  }
+
+  if (!lessonTitle) {
+    lessonTitle = schoolSubjects?.[subjectIndex]?.units?.[unitIndex]?.lessons?.[lessonIndex] || "";
+  }
+
+  localStorage.removeItem("return_to_lesson");
+  openLessonView(subjectIndex, unitIndex, lessonIndex, lessonTitle);
+
+  return true;
+}
+
+
+/* =======================================================================================
+   17) Lesson View
+======================================================================================= */
+
+function openLessonView(subjectIndex, unitIndex, lessonIndex, lessonTitle){
+  history.pushState({page:"lesson"},"","#/lesson/0")
+  localStorage.setItem("lesson", lessonIndex);
+  saveCurrentLessonState(subjectIndex, unitIndex, lessonIndex, lessonTitle);
+  setCurrentView(() => openUnit(subjectIndex, unitIndex));
+
+  lastLessonViewFn = () => openLessonView(subjectIndex, unitIndex, lessonIndex, lessonTitle);
+
+  classremove();
+  change_Page.innerHTML = "";
+  change_Page.classList.add("view_Data_Lesson");
+  hide(".proFile");
+  hide(".views");
+
+  change_Page.innerHTML = `
+    <div class="view_videos">
+      <video poster="img/views/47views.svg" id="videoPlayer" controls preload="metadata" width="100%" height="100%"></video>
+      <h2>تكبير الشاشه للمشاهده</h2>
+
+      <div class="footerTools">
+        <div class="previousQuiz" id="btnPrevVideo">
+          <img src="img/squiz/arrow-right.svg"><span>السابق</span>
+        </div>
+        <div class="testDelivery" id="videoCounter">0/0</div>
+        <div class="nextQuiz" id="btnNextVideo">
+          <span>التالي</span><img src="img/squiz/arrow-left.svg">
+        </div>
+      </div>
+
+      <div id="downloadLessonBox" style="margin-top:12px;display:flex;justify-content:center;">
+        <button id="btnDownloadLesson"
+          style="
+            border:none;
+            outline:none;
+            padding:2% 3%;
+            border-radius:12px;
+            font-size:16px;
+            font-weight:bold;
+            cursor:pointer;
+            background:var(--app-color);
+            color:#fff;
+            width:90vw;
+          ">
+          تحميل الدرس كامل
+        </button>
+      </div>
+
+      <div id="lessonStatus">جارِ تجهيز ملفات الدرس ...</div>
+    </div>
+
+    <div class="views_items_lessons">
+      <div class="recoder"><img src="img/viewlessons/vibrate.png"><h4>تسجيل</h4></div>
+      <div class="doctor_summary"><img src="img/lessons/lesson10.png"><h4>ملخص دكتور</h4></div>
+      <div class="other_summaries"><img src="img/lessons/lesson6.png"><h4>ملخصات منوعه</h4></div>
+      <div class="interactive_quiz"><img src="img/questions.png"><h4>اختبار تفاعلي</h4></div>
+      <div class="studio_gallery"><img src="img/viewlessons/images.png"><h4>الاستديو</h4></div>
+      <div class="quick_review"><img src="img/review.png"><h4>مراجعه سريعه</h4></div>
+    </div>
+  `;
+
+  (async () => {
+    const status = document.getElementById("lessonStatus");
+    const downloadBtn = document.getElementById("btnDownloadLesson");
+
+    try{
+      const data = await loadLessonData(subjectIndex, unitIndex, lessonIndex);
+
+      if(status){
+        status.textContent =
+          data.source === "local"
+            ? "تم العثور على الدرس محليًا ✅"
+            : "تم تجهيز ملفات الدرس من GitHub ✅";
+      }
+
+      initVideoNavigator(data, subjectIndex, unitIndex, lessonIndex);
+      initLessonButtons(data, subjectIndex, unitIndex, lessonIndex);
+
+      if(downloadBtn){
+        if(!hasDroidScript()){
+          downloadBtn.textContent = "التحميل غير متاح في WebView";
+          downloadBtn.disabled = true;
+          downloadBtn.style.opacity = "0.6";
+          downloadBtn.style.cursor = "not-allowed";
+        }
+        else if(data.source === "local"){
+          downloadBtn.textContent = "الدرس محفوظ على الجهاز";
+          downloadBtn.style.background = "#2e7d32";
+          downloadBtn.style.opacity = "1";
+
+          downloadBtn.addEventListener("click", () => {
+            if(status){
+              status.textContent = "يتم استخدام ملفات الجهاز المحلية ✅\nالمسار: " + getLocalLessonRoot(subjectIndex, unitIndex, lessonIndex);
+            }
+            alert("هذا الدرس محفوظ مسبقًا على الجهاز");
+          });
+        } else {
+          downloadBtn.textContent = "تحميل الدرس كامل";
+
+          downloadBtn.addEventListener("click", () => {
+            softNavigate(() => {
+              downloadLessonPackage(subjectIndex, unitIndex, lessonIndex, lessonTitle);
+            }, 150);
+          });
+        }
+      }
+
+    }catch(err){
+      console.log(err);
+
+      if(status){
+        status.textContent = "فشل التحميل ❌ تأكد من المسارات";
+      }
+
+      initVideoNavigator({source:"github"}, subjectIndex, unitIndex, lessonIndex);
+      initLessonButtons({source:"github", audioSrc:"", doctorPdf:"", reviewHtml:"", booksDir:"", shotsDir:""}, subjectIndex, unitIndex, lessonIndex);
+
+      if(downloadBtn){
+        downloadBtn.disabled = true;
+        downloadBtn.style.opacity = "0.6";
+        downloadBtn.textContent = "التحميل غير متاح";
+      }
+    }
+  })();
+}
+
+
+/* =======================================================================================
+   18) Video Navigator (Lazy)
+======================================================================================= */
+
+function initVideoNavigator(data, subjectIndex, unitIndex, lessonIndex){
+  const player  = document.getElementById("videoPlayer");
+  const btnPrev = document.getElementById("btnPrevVideo");
+  const btnNext = document.getElementById("btnNextVideo");
+  const counter = document.getElementById("videoCounter");
+
+  let videos = [];
+  let index = 0;
+  let loaded = false;
+
+  async function ensureVideos(){
+    if(loaded) return;
+    loaded = true;
+
+    if(data.source === "local"){
+      videos = listLocalVideos(data.videosDir);
+    }else{
+      videos = await listRemoteVideos(subjectIndex, unitIndex, lessonIndex);
+    }
+  }
+
+  async function render(){
+    await ensureVideos();
+
+    const total = videos.length;
+    if(counter) counter.textContent = total ? `${index+1}/${total}` : "0/0";
+
+    if(!total){
+      if(player){
+        player.removeAttribute("src");
+        player.load();
+      }
+      if(btnPrev) btnPrev.style.opacity = "0.5";
+      if(btnNext) btnNext.style.opacity = "0.5";
+      return;
+    }
+
+    const item = videos[index];
+
+    if(player){
+      // الأفضل أداءً: المسار المباشر
+      player.src = item.local
+        ? resolveMediaSource(item.url, guessMimeType(item.url), true)
+        : item.url;
+      player.load();
+    }
+
+    if(btnPrev) btnPrev.style.opacity = (index === 0) ? "0.5" : "1";
+    if(btnNext) btnNext.style.opacity = (index === total - 1) ? "0.5" : "1";
+  }
+
+  if(btnPrev){
+    btnPrev.addEventListener("click", async () => {
+      await ensureVideos();
+      if(index > 0){
+        index--;
+        render();
+      }
+    });
+  }
+
+  if(btnNext){
+    btnNext.addEventListener("click", async () => {
+      await ensureVideos();
+      if(index < videos.length - 1){
+        index++;
+        render();
+      }
+    });
+  }
+
+  // حمل أول فيديو فقط
+  render();
+}
+
+
+/* =======================================================================================
+   19) Lesson Buttons (Lazy)
+======================================================================================= */
+
+function initLessonButtons(data, subjectIndex, unitIndex, lessonIndex){
+
+  const recoderBtn = qs(".view_Data_Lesson .recoder");
+  if(recoderBtn){
+    recoderBtn.addEventListener("click", () => {
+      softNavigate(() => openAudioView(data.audioSrc, data.source === "local"), 300);
+    });
+  }
+
+  const doctorBtn = qs(".view_Data_Lesson .doctor_summary");
+  if(doctorBtn){
+    doctorBtn.addEventListener("click", () => {
+      softNavigate(() => openPdfInViewer(data.doctorPdf, data.source === "local"), 300);
+    });
+  }
+
+  const otherBtn = qs(".view_Data_Lesson .other_summaries");
+  if(otherBtn){
+    otherBtn.addEventListener("click", async () => {
+      let books = [];
+      if(data.source === "local"){
+        books = listLocalBooks(data.booksDir);
+      }else{
+        books = await listRemoteBooks(subjectIndex, unitIndex, lessonIndex);
+      }
+      softNavigate(() => openBooksList(books), 100);
+    });
+  }
+
+  const studioBtn = qs(".view_Data_Lesson .studio_gallery");
+  if(studioBtn){
+    studioBtn.addEventListener("click", async () => {
+      let shots = [];
+      if(data.source === "local"){
+        shots = listLocalShots(data.shotsDir);
+      }else{
+        shots = await listRemoteShots(subjectIndex, unitIndex, lessonIndex);
+      }
+      softNavigate(() => openShotsGallery(shots), 100);
+    });
+  }
+
+  const reviewBtn = qs(".view_Data_Lesson .quick_review");
+  if(reviewBtn){
+    reviewBtn.addEventListener("click", () => {
+      softNavigate(() => openReviewHtml(data.reviewHtml, data.source === "local"), 300);
+    });
+  }
+}
+
+
+/* =======================================================================================
+   20) Audio / PDF / Books / Gallery / Review
+======================================================================================= */
+
+function openAudioView(url, isLocal){
+  setCurrentView(lastLessonViewFn || goBackView);
+
+  classremove();
+  change_Page.innerHTML = "";
+  change_Page.classList.add("recoder_view");
+
+  const src = isLocal
+    ? resolveMediaSource(url, "audio/mpeg", true)
+    : (url || "");
+
+  change_Page.innerHTML = `
+    <div>
+      <h2>تسجيل المحاضرة</h2>
+      <audio src="${src}" controls></audio>
+    </div>
+  `;
+}
+
+function openPdfInViewer(pdfUrl, isLocal){
+  if(!pdfUrl){
+    alert("لا يوجد ملف PDF");
+    return;
+  }
+
+  if(isLocal){
+    
+
+    const src = resolveMediaSource(pdfUrl, "application/pdf", true);
+
+    localStorage.setItem("doctor_pdf_path", src);
+  window.location.href = "html/viewer.html";
+    return;
+  }
+
+  localStorage.setItem("doctor_pdf_path", pdfUrl);
+  window.location.href = "html/viewer.html";
+}
+
+function openBooksList(books){
+  setCurrentView(lastLessonViewFn || goBackView);
+
+  classremove();
+  change_Page.innerHTML = "";
+  change_Page.classList.add("otherSummaries_section");
+
+  if(!books.length){
+    change_Page.innerHTML = `<h2 style="text-align:center;padding:20px;">لا توجد ملخصات منوعة لهذا الدرس</h2>`;
+    return;
+  }
+
+  books.forEach((b, i) => {
+    const div = document.createElement("div");
+    div.classList.add("div_Items");
+    div.innerHTML = `
+      <img src="img/lessons/lesson60.png">
+      <h1>${escapeHtml(b.title)}</h1>
+      <h3>فتح</h3>
+      <p>ملخص <strong>${i+1}</strong></p>
+    `;
+    div.addEventListener("click", () => softNavigate(() => openPdfInViewer(b.url, !!b.local), 200));
+    change_Page.appendChild(div);
+  });
+}
+
+function openShotsGallery(shots){
+  setCurrentView(lastLessonViewFn || goBackView);
+
+  classremove();
+  change_Page.innerHTML = "";
+  change_Page.classList.add("studio_view");
+
+  const list = shots.map(s => ({
+    src: s.local ? resolveMediaSource(s.url, guessMimeType(s.url), true) : s.url,
+    raw: s.url,
+    local: !!s.local
+  }));
+
+  change_Page.innerHTML = `
+    <div class="studio_header">
+      <div class="studio_title">
+        <h1>الاستوديو</h1>
+        <p>عدد اللقطات (${list.length})</p>
+      </div>
+    </div>
+
+    <div class="studio_grid"></div>
+
+    <div class="studio_modal" style="display:none;">
+      <div class="studio_modal_top">
+        <button class="modal_close">إغلاق</button>
+        <div class="modal_zoom">
+          <button class="zoom_out">−</button>
+          <span class="zoom_level">100%</span>
+          <button class="zoom_in">+</button>
+          <button class="zoom_reset">إعادة</button>
+        </div>
+      </div>
+
+      <div class="studio_modal_body">
+        <div class="zoom_stage">
+          <img class="modal_img" src="" draggable="false">
+        </div>
+      </div>
+    </div>
+  `;
+
+  const grid = qs(".studio_grid");
+  if(!grid) return;
+
+  if(!list.length){
+    grid.innerHTML = `<div class="studio_empty">لا توجد صور.</div>`;
+    return;
+  }
+
+  list.forEach((item, i) => {
+    const card = document.createElement("div");
+    card.classList.add("studio_card");
+    card.innerHTML = `
+      <img src="${item.src}">
+      <div class="studio_badge">لقطة ${i+1}</div>
+    `;
+    card.addEventListener("click", () => openModal(item.src));
+    grid.appendChild(card);
+  });
+
+  const modal = qs(".studio_modal");
+  const modalImg = qs(".modal_img");
+  const zoomTxt = qs(".zoom_level");
+  const closeBtn = qs(".modal_close");
+  const zoomInBtn = qs(".zoom_in");
+  const zoomOutBtn = qs(".zoom_out");
+  const zoomResetBtn = qs(".zoom_reset");
+  const stage = qs(".zoom_stage");
+
+  let scale = 1;
+  let pos = { x:0, y:0 };
+  let isPanning = false;
+  let start = { x:0, y:0 };
+  const minScale = 1;
+  const maxScale = 4;
+
+  function apply(){
+    if(!modalImg || !zoomTxt) return;
+    modalImg.style.transform = `translate(${pos.x}px,${pos.y}px) scale(${scale})`;
+    zoomTxt.textContent = Math.round(scale * 100) + "%";
+  }
+
+  function reset(){
+    scale = 1;
+    pos = { x:0, y:0 };
+    apply();
+  }
+
+  function openModal(src){
+    if(!modal || !modalImg) return;
+    modalImg.src = src;
+    modal.style.display = "flex";
+    reset();
+  }
+
+  function closeModal(){
+    if(!modal || !modalImg) return;
+    modal.style.display = "none";
+    modalImg.src = "";
+  }
+
+  if(closeBtn) closeBtn.addEventListener("click", closeModal);
+
+  if(modal){
+    modal.addEventListener("click", (e) => {
+      if(e.target.classList.contains("studio_modal")) closeModal();
+    });
+  }
+
+  if(zoomInBtn) zoomInBtn.addEventListener("click", () => {
+    scale = Math.min(maxScale, scale + 0.25);
+    apply();
+  });
+
+  if(zoomOutBtn) zoomOutBtn.addEventListener("click", () => {
+    scale = Math.max(minScale, scale - 0.25);
+    apply();
+  });
+
+  if(zoomResetBtn) zoomResetBtn.addEventListener("click", reset);
+
+  if(stage){
+    stage.addEventListener("mousedown", (e) => {
+      isPanning = true;
+      start.x = e.clientX - pos.x;
+      start.y = e.clientY - pos.y;
+    });
+
+    window.addEventListener("mousemove", (e) => {
+      if(!isPanning) return;
+      pos.x = e.clientX - start.x;
+      pos.y = e.clientY - start.y;
+      apply();
+    });
+
+    window.addEventListener("mouseup", () => {
+      isPanning = false;
+    });
+
+    stage.addEventListener("touchstart", (e) => {
+      if(!e.touches || e.touches.length !== 1) return;
+      isPanning = true;
+      start.x = e.touches[0].clientX - pos.x;
+      start.y = e.touches[0].clientY - pos.y;
+    }, { passive:true });
+
+    stage.addEventListener("touchmove", (e) => {
+      if(!isPanning || !e.touches || e.touches.length !== 1) return;
+      pos.x = e.touches[0].clientX - start.x;
+      pos.y = e.touches[0].clientY - start.y;
+      apply();
+    }, { passive:true });
+
+    stage.addEventListener("touchend", () => {
+      isPanning = false;
+    });
+
+    stage.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? -0.15 : 0.15;
+      scale = Math.min(maxScale, Math.max(minScale, scale + delta));
+      apply();
+    }, { passive:false });
+  }
+}
+
+function openReviewHtml(url, isLocal){
+  setCurrentView(lastLessonViewFn || goBackView);
+
+  if(!url){
+    alert("review.html غير موجود");
+    return;
+  }
+
+  classremove();
+  change_Page.innerHTML = "";
+  change_Page.classList.add("review_view");
+
+  if(isLocal && hasDroidScript()){
+    const htmlText = readFileSafe(url);
+
+    if(htmlText && htmlText.trim()){
+      change_Page.innerHTML = `
+        <div style="padding:12px;margin:0;height:100vh;overflow:auto;background:#fff">
+          ${htmlText}
+        </div>
+      `;
+      return;
+    }
+  }
+
+  change_Page.innerHTML = `
+    <div style="padding:0;margin:0;height:100vh">
+      <iframe src="${url}" style="border:0;width:100%;height:100%"></iframe>
+    </div>
+  `;
+}
+
+
+/* =======================================================================================
+   21) Start App
+======================================================================================= */
+
+function route() {
+      const hash = window.location.hash;
+      const unitMatch = hash.match(/^#\/materials\/(\d+)$/);
+      const unitsMatch = hash.match(/^#\/subject\/(\d+)\/\units\/(\d+)$/);
+      if (hash === "#/home" || hash === "") {
+      history.replaceState({page:"home"},"","#/home")  
+        renderSubjectsHome()
+        return;
+      }
+      
+      console.log(unitMatch)
+      if (unitMatch) {
+        
+        openSubject(+unitMatch[1]);
+        return;
+      }
+
+     // renderSubjectsHome()
+
+      
+      if (unitsMatch) {
+        
+        openUnit(+unitsMatch[1],+unitsMatch[2])
+        return;
+      }
+
+      
+    }
+ /* softNavigate(() => {
+    const restored = restoreLessonIfNeeded();
+    if(!restored) renderSubjectsHome();
+    
+  }, 100);*/
+  
+  window.addEventListener("hashchange", route);
+ 
+ // window.addEventListener("popstate",route)
+  
+  
+function startApp(){
+  if(!window.change_Page){
+    console.log("change_Page not found!");
+    return;
+  }
+
+  softNavigate(() => {
+    // نحاول أولًا استرجاع الدرس المحدد
+    const restored = restoreLessonIfNeeded();
+
+    // إذا لا يوجد درس محفوظ نفتح الصفحة الرئيسية
+   // if (!restored) {
+     // renderSubjectsHome();
+      route()
+   // }
+  }, 100);
+}
+
+document.addEventListener("DOMContentLoaded", startApp);
