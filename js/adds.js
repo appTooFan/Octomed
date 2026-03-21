@@ -108,8 +108,7 @@ function renderAddsHome() {
 
   addsBtn.addEventListener("click", function(){
     // ✅ مهم: قبل الدخول لشاشة الإضافات احفظ الصفحة الحالية للرجوع
-    
-
+    setFooterActive(1)
     renderAddsHome()
   });
 })();
