@@ -34,7 +34,7 @@
   -webkit-text-size-adjust: none; /* دعم للمتصفحات القديمة */
   -moz-text-size-adjust: none;
 -webkit-touch-callout: none;
-    
+    user-select: none;
     
 }
 
@@ -84,9 +84,7 @@ align-items: center;
   height: auto;
 }
 
-/*.container .footer .img{
-  border-top : 0.2vh solid var(--borderFooter-color);
-}*/
+
 .container .footer .img div {
   width: 100%;
   height: 7vh;
@@ -117,8 +115,8 @@ align-items: center;
   height: auto;
   object-fit: cover;
   grid-column: 1/2;
-  border: solid 0.2vw var(--borderLogo-color);
-  border-radius: 50%;
+  border: solid 0vw var(--borderLogo-color);
+  border-radius: 0%;
 }
 .container .proFile .user_Name{
   align-self: center;
@@ -527,17 +525,17 @@ overflow-y: scroll;
 .container .section_News{
   width: 90%;
 height: calc(75vh - 7vh);
-padding: 10px;
+padding: 1%;
 position: relative;
 font-family: DINNextLTW23;
 font-weight: bold;
 color: var(--title-color);
-font-size: 18px;
+
 caret-color: var(--textblue-color);
 direction: rtl;
 text-indent: 5%;
 padding-right: 5%;
-background-image: url("../img/setting/imgsetting/paper.svg");
+background-image: url("../img/settings/imgsetting/paper.svg");
 background-size: cover;
 
 background-repeat: no-repeat;
@@ -551,7 +549,7 @@ overflow-y: scroll;
   
   position: absolute;
   left: 0;
-  bottom: 5px;
+  bottom: 1%;
   transition: 0.3s;
 }
 .container .section_News img:hover {
@@ -561,11 +559,11 @@ overflow-y: scroll;
 .container .section_News h1{
   font-family: Lalezar;
   color: #449B98;
-  font-size: 36px;
+  font-size: 10vw;
 }
 .container .section_News p{
   font-weight: bold;
-  font-size: 25px;
+  font-size: 6vw;
   font-family: myfonts;
   height: 80%;
   overflow-y: scroll;
@@ -573,13 +571,13 @@ overflow-y: scroll;
 .container .section_information_fly{
   width: 99%;
 height: 50vh;
-padding: 10px;
+padding: 2%;
 padding-top: 5%;
 position: relative;
 font-family: DINNextLTW23;
 font-weight: bold;
 color: var(--title-color);
-font-size: 18px;
+font-size: 5vw;
 caret-color: var(--textblue-color);
 direction: rtl;
 text-indent: 5%;
@@ -598,7 +596,7 @@ overflow-y: scroll;
   z-index: 999999;
   position: absolute;
   left: 0;
-  bottom: 5px;
+  bottom: 1%;
   transition: 0.3s;
 }
 .container .section_information_fly img:hover{
@@ -636,15 +634,16 @@ display: flex;
 flex-direction: column;
 align-items: center;
 justify-content: space-evenly;
+
 }
 
-.container .view_Data_Lesson .view_videos video{
-  border: 1px solid #000;
-   border-radius: 15px;
+.container .view_Data_Lesson .view_videos iframe{
+  border: 0.2vw solid var(--border-color);
+   border-radius: 3vw;
    background-color: #F1F7FB;
-    width: 100%; /* ضبط عرض الفيديو ليكون 100% من عرض الشاشة */
+    width: 95%; /* ضبط عرض الفيديو ليكون 100% من عرض الشاشة */
     height: 30vh; /* ضبط ارتفاع الفيديو ليكون 100% من ارتفاع الشاشة */
-   max-width: 100%;
+   
 max-height: 100%;
     object-fit: fill; /* تأكد من أن الفيديو يملأ الشاشة بشكل كامل */
     margin: 0; /* إزالة أي مسافات حول الفيديو */
@@ -1154,6 +1153,146 @@ background-repeat: no-repeat;
   text-align: center;
   font-weight: bold;
 }
+.container .quiz_view,
+.container .review_view
+{
+  width: 100%;
+  height: calc(80vh - 7vh);
+  background-color: #F1F7FB;
+  overflow: scroll;
+  
+}
+.container  .settings .h1setting{
+  color: var(--textblue-color);
+  font-family: 'DINNextLTW23';
+  text-align: center;
+  font-size: 8vw;
+}
+.container .settings{
+  width: 100%;
+  height: calc(80vh - 7vh);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+ overflow-y: scroll;
+ 
+}
+.container .settings div{
+  width: 95%;
+  height: fit-content;
+  background: var(--whiteMilk-color);
+  display: grid;
+  grid-template-columns: 8% 1fr;
+  column-gap: 5%;
+  border-radius: 2vw;
+  margin-top: 2%;
+  border: 0.2vw solid #C0C0C0;
+  transition: 0.3s;
+  box-shadow: 0px 0px 10px 0px var(--borderShadow-color);
+  justify-content: flex-start;
+  align-items: center;
+  direction: rtl;
+  padding: 3%;
+  padding-bottom: 3.5%;
+  padding-top: 3.5%;
+  background-image: linear-gradient(to right, var(--whiteMilk-color) 0%, var(--shimmer-color) 20%, var(--whiteMilk-color) 40%, var(--whiteMilk-color) 100%);
+  background-size: 150% 150%;
+  background-repeat: no-repeat;
+  animation: shimmer 1s linear infinite;
+}
+.container .settings div:active{
+  transform: scale(0.8);
+}
+.container .settings div img{
+  
+  width: 100%;
+  height: auto;
+  border-radius: 0%;
+  
+  
+}
+
+.container .settings div h1 {
+  font-family: DINNextLTW23;
+  color: var(--title2-color);
+  font-size: 4vw;
+  
+  text-align: right;
+  
+}
+.info_Profile{
+  width: 100vw;
+  height: calc(80vh - 7vh);
+  background: var(--background-color);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  overflow-y: scroll
+}
+.info_Profile .h1_Profile{
+  color: var(--textblue-color);
+  font-family: 'DINNextLTW23';
+  text-align: center;
+  padding: 1%;
+  font-size: 8vw;
+}
+.info_Profile_Img{
+  width: 100%;
+  height: 40%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 2%;
+  position: relative;
+}
+.info_Profile_Img img{
+  width: 100%;
+  height: 100%;
+  
+}
+.info_Profile_Img h1{
+  position: absolute;
+  font-size: 3.5vw;
+  color: #000;
+  bottom: 2%;
+  left: 50%;
+  transform: translateX(-50%)
+  
+}
+.info_Profile_UserName,.info_Profile_Created_Date,.Exp_Date{
+  width: 95vw;
+background: var(--whiteMilk-color);
+margin-top: 2%;
+border: solid 0.2vw #C0C0C0;
+border-radius: 2vw;
+text-align: right;
+padding: 4%;
+font-family: 'DINNextLTW23';
+display: flex;
+flex-direction: row;
+direction: rtl;
+justify-content: flex-start;
+align-items: center;
+column-gap: 3%;
+color: var(--title2-color);
+transition: 0.3s;
+font-weight: bold;
+background-image: linear-gradient(to right, var(--whiteMilk-color) 0%, rgba(0, 0, 0, 0.03) 20%, var(--whiteMilk-color) 40%, var(--whiteMilk-color) 100%);
+background-size: 150% 150%;
+background-repeat: no-repeat;
+animation: shimmer 1s linear infinite;
+  
+}
+.info_Profile_UserName .first,
+.info_Profile_Created_Date .first,
+.Exp_Date .first{
+  font-size: 4vw;
+  color: var(--app-color);
+  font-family: DINNextLTW23
+  
+}
 @keyframes shimmer{
   0%{
     background-position: -150% 0;
@@ -1174,132 +1313,3 @@ background-repeat: no-repeat;
 }
 
 
-/*@media screen and (min-width:768px) and (orientation:portrait){
-.container .subjects div img{
-  width: 35%;
-  height: auto;
-}
-.container .views{
-  width: 100%;
-  height: 30vh;
-  border-radius: 15px;
-  
-  
-}
-.container .views img{
-  width: 100%;
-  height: 25vh;
-  border-radius: 10px;
-}
-
-.container .views h1{
-  font-size: 25px;
-  font-family: "DINNextLTW23";
-  color: var(--title2-color);
-  text-align: center;
-  margin-top: 5px;
-}
-
-.container .proFile{
-  width: 100%;
-  height: 20vh;
-  line-height: 1;
-  direction: rtl;
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr;
-  grid-template-rows: auto auto 30px;
-  justify-items: center;
-  align-content: space-evenly;
-}
-.container .proFile img{
-  align-self: center;
-  width: 100px;
-  height: 100px;
-  object-fit: cover;
-  grid-column: 1/2;
-  border: solid 1px var(--borderLogo-color);
-  border-radius: 50%;
-  background-image: url("../img/cap.svg");
-  background-repeat: no-repeat;
-  background-size: cover;
-  background-position-y: 50%
-}
-.container .proFile .user_Name{
-  align-self: center;
-  width: 100%;
-  grid-column: 2/4;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: flex-start
-}
-.container .proFile .user_Name h1{
-  color: var(--title2-color);
-font-family: DroidKufi-Regular;
-font-size: 36px;
-}
-.container .proFile .user_Name h3{
-  color: var(--title2-color);
-  font-family: DINNextLTW23;
-  padding-top: 10px;
-
-  font-size: 30px;
-}
-.container .proFile .rate{
- grid-column: 4/5; 
- align-self: center;
- background: rgba(20, 101, 255, 0.1);
-color: var(--red-color);
-font-family: Almarai-Bold;
-font-weight: bold;
-border-radius: 8px;
-font-size: 40px;
-padding-left: 10px;
-  padding-right: 10px;
-  padding-top: 5px;
-  padding-bottom: 5px;
-transition: 0.3s;
-}
-.container .proFile .rate_Data{
-  align-self: center;
-  width: 90%;
-  grid-column: 1/-1;
-  display: flex;
-  flex-direction: row;
-  justify-content: space-between;
-  margin-top: 1px;
-  margin-bottom: 1px;
-}
-.container .proFile .rate_Data h1{
-  color: var(--textRate-color);
-font-family: DINNextLTW23;
-font-weight: bold;
-font-size: 30px
-}
-.container .proFile .rate_Data h3 {
-  color: var(--levelRate-color);
-  font-family: Lalezar;
-  font-weight: bold;
-  letter-spacing: 1px;
-  font-size: 32px;
-}
-.container .proFile .pro_Level{
-  grid-column: 1/-1;
-  width: 95%;
-  height: 30px;
-  background: var(--backgroundProgress-color);
-  border-radius: 5px;
-}
-.container .pro_Level .pro_Fill{
-  width: 0%;
-  height: 30px;
-  background: var(--app-color);
-  border-radius: 15px;
-  background-image: linear-gradient(to right, var(--app-color) 0%, var(--shimmer-color) 20%, var(--app-color) 40%, var(--app-color) 100%);
-  background-size: 100px 100px;
-  background-repeat: no-repeat;
-  animation: wave 10s infinite;
-  transition: 0.3s;
-  
-}
-}
