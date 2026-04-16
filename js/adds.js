@@ -55,7 +55,13 @@ function renderAddsHome() {
   _hide(".views");
 
   change_Page.classList.add("adds");
-
+ const hash = window.location.hash;
+      const addsMatch = hash.match(/^#\/adds$/);
+      if(!addsMatch)
+  {
+    history.pushState({page:"adds"},"",`#/adds`)
+    
+  } 
   // container = change_Page نفسه لأنه يحمل class adds الآن
   const container = change_Page;
 
@@ -120,7 +126,13 @@ function renderAddsHome() {
 function openNewsSection() {
   // ✅ الرجوع من الأخبار يرجع لقائمة الإضافات
   if (typeof setCurrentView === "function") setCurrentView(renderAddsHome);
-
+const hash = window.location.hash;
+      const newsMatch = hash.match(/^#\/news$/);
+      if(!newsMatch)
+  {
+    history.pushState({page:"news"},"",`#/news`)
+    
+  } 
   _reset();
   change_Page.innerHTML = "";
   change_Page.classList.add("section_News");
