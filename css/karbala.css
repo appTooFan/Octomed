@@ -45,8 +45,8 @@ body{
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  
   direction: rtl;
+  position: relative;
 }
 .container{
   width: 100%;
@@ -980,7 +980,7 @@ background-repeat: no-repeat;
 
 .container .studio_card img{
   width: 100%;
-  height: 25%;
+  height: 100%;
   object-fit: cover;
   display: block;
 }
@@ -1292,6 +1292,55 @@ animation: shimmer 1s linear infinite;
   color: var(--app-color);
   font-family: DINNextLTW23
   
+}
+
+.worng{
+  width: 90vw;
+  height: 50vh;
+  z-index: 9999;
+  position: absolute;
+  bottom: 25vh;
+  background: var(--white-color);
+  border-radius: 89% 11% 82% 18% / 11% 85% 15% 89% ;
+  box-shadow: 0 0 10px 5px #bbb;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+  align-items: center;
+  overflow: hidden;
+  background-image: linear-gradient(to right, var(--white-color) 0%, var(--shimmer-color) 20%, var(--white-color) 40%, var(--white-color) 100%);
+  background-size: 150% 150%;
+  background-repeat: no-repeat;
+  animation: shimmer 1s linear infinite;
+}
+.worng img{
+  width: 90%;
+  height: 25vh;
+  
+}
+.worng h3{
+  color: var(--red-color);
+  font-family: "DINNextLTW23";
+  font-size: 5vw;
+  font-weight: bold;
+}
+.worng button{
+  width: 50%;
+  height: fit-content;
+  font-family: "DINNextLTW23";
+  background-color: var(--app-color);
+  color: var(--white-color);
+  border: none;
+  outline: none;
+  font-size: 4.5vw;
+  border-radius: 3vw;
+  transition: 0.3s;
+  padding: 2%;
+  background-image: linear-gradient(to right, var(--app-color) 0%, var(--shimmer-color) 20%, var(--app-color) 40%, var(--app-color) 100%);
+  background-size: 450px 450px;
+  background-repeat: no-repeat;
+  animation: shimmer 1s linear infinite;
+  animation-delay: 0.2s
 }
 @keyframes shimmer{
   0%{
