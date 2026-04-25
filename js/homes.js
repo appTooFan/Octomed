@@ -101,7 +101,7 @@ const GH = {
   apiBase: "https://api.github.com",
 
   // ✅ هذا هو CDN الذي طلبته (بدل GitHub raw)
-  cdnBase: "https://cdn.jsdelivr.net/gh/appTooFan/Rafigtalib@main"
+  cdnBase: "https://raw.githubusercontent.com/appTooFan/Rafigtalib/refs/heads/main"
 };
 
 /**
