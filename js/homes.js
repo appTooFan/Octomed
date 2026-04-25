@@ -293,7 +293,7 @@ window.homeinnerhtml = `
 
 const schoolSubjects = [
   { subject: "التشريح", units: [
-      { unitNumber: "الفصل الدراسي الأول", lessons: ["الكربوهيدرات", "الاحماض"] },
+      { unitNumber: "الفصل الدراسي الأول", lessons: ["مقدمه عن الجهاز العضلي"] },
       { unitNumber: "الفصل الدراسي الثاني", lessons: [] },
       { unitNumber: "الفصل الدراسي الصيفي", lessons: [] }
   ]},
