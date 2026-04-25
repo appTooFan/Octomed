@@ -117,6 +117,8 @@ container.innerHTML="<h1 class='h1setting'>الاعدادات</h1>"
    4) Section: infoUser
 ========================= */
 function openInfoUser() {
+   // ✅ الرجوع من المعلومة يرجع لقائمة الإضافات
+  if (typeof setCurrentView === "function") setCurrentView(renderSettings);
   const hash = window.location.hash;
       const newsMatch = hash.match(/^#\/settings/);
       if(!newsMatch)
@@ -130,7 +132,7 @@ function openInfoUser() {
   change_Page.innerHTML=` 
   <h1 class="h1_Profile">الحساب الشخصي</h1>
       <div class="info_Profile_Img">
-        <img src="../img/settings/imgsetting/card.svg">
+        <img src="img/settings/imgsetting/card.svg">
         <h1>202510101455</h1>
       </div>
       <div class="info_Profile_UserName">

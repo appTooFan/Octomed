@@ -21,7 +21,32 @@ let data_List_chats = [ // قاعده بيانات قائمه عرض الاضا�
   
   
 ];
+/* =========================
+   3) Footer binding (Adds button)
+   - footerdiv[1] في كودك القديم
+========================= */
+(function bindFooterChats(){
+  // حاول نستخدم global footerdiv لو موجود
+  let f = window.footerdiv;
 
+  // لو غير موجود، نحاول نلتقطه من DOM
+  if (!f || !f.length) {
+    f = _qsa(".footer .img");
+  }
+
+  // إن لم يوجد Footer اخرج
+  if (!f || !f.length) return;
+
+  // زر الإضافات غالباً هو رقم 1 (مثل كودك)
+  const addsBtn = f[2];
+  if (!addsBtn) return;
+
+  addsBtn.addEventListener("click", function(){
+    // ✅ مهم: قبل الدخول لشاشة الإضافات احفظ الصفحة الحالية للرجوع
+    setFooterActive(2)
+    renderAddsHome()
+  });
+})();
 footerdiv[2].addEventListener('click', function() {
   if (change_Page.classList.contains('chats')==false) {
     change_Page.innerHTML = "";
